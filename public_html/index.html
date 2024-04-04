@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sakuramusic V2 Music Downloader</title>
+</head>
+
+<body>
+    <h1>Sakuramusic V2 Music Downloader</h1>
+    <form id="downloadForm" action="/api/download" method="post">
+        <label for="url">URL:</label><br>
+        <input type="text" id="url" name="url" required><br>
+        <input type="radio" id="format" name="format" value="opus" checked>
+        <label for="format">OPUS</label><br>
+        <input type="radio" id="format" name="format" value="mp4">
+        <label for="format">MP4</label><br>
+        <button type="submit">Download</button>
+    </form>
+    <div id="musicinfo" style="display: none;">
+        <p id="title"></p>
+        <p id="url"></p>
+        <p id="totalsec"></p>
+        <p id="viewcount"></p>
+        <p id="author"></p>
+        <p><a id="authorurl" href=""></a></p>
+        <p id="subscriber_count"></p>
+        <p id="verified"></p>
+        <p>Thumbnail:</p>
+        <img id="thumbnail" src="" alt="">
+    </div>
+    <audio id="audioPlayer" controls style="display:none;"></audio>
+    <video id="videoPlayer" controls style="display:none;"></video>
+
+    <script>
+        document.getElementById("downloadForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            const url = document.getElementById("url").value;
+            const format = document.querySelector('input[name="format"]:checked').value;
+            fetch("/api/getInfo?url=" + encodeURIComponent(url), {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Accept": "application/json"
+                },
+            })
+                .then(response_videodata => {
+                    if (!response_videodata.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response_videodata.json();
+                })
+                .then(response_videodata => {
+                    switch (format) {
+                        case "opus":
+
+                            fetch("/api/download/audio?url=" + encodeURIComponent(url), {
+                                method: "GET",
+                                headers: {
+                                    "Content-Type": "application/x-www-form-urlencoded"
+                                },
+                            })
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error('Network response was not ok');
+                                    }
+                                    return response.blob();
+                                })
+                                .then(blob => {
+                                    const url = window.URL.createObjectURL(blob);
+                                    const audioPlayer = document.getElementById("audioPlayer");
+                                    audioPlayer.src = url;
+                                    audioPlayer.style.display = "block";
+                                    const videoPlayer = document.getElementById("videoPlayer");
+                                    videoPlayer.style.display = "none";
+                                    if (videoPlayer.src) {
+                                        videoPlayer.src = "";
+                                    }
+                                    audioPlayer.title = response_videodata.title + ".opus";
+                                    const musicinfo = document.getElementById("musicinfo");
+                                    musicinfo.style.display = "block";
+                                    document.getElementById("title").textContent = "Title: " + response_videodata.title;
+                                    document.getElementById("url").textContent = "URL: " + response_videodata.url;
+                                    document.getElementById("totalsec").textContent = "TotalSec: " + response_videodata.totalsec;
+                                    document.getElementById("viewcount").textContent = "ViewCount: " + response_videodata.viewcount;
+                                    document.getElementById("author").textContent = "Author: " + response_videodata.author.name;
+                                    document.getElementById("authorurl").setAttribute("href", response_videodata.author.url);
+                                    document.getElementById("authorurl").textContent = "Author URL: " + response_videodata.author.url;
+                                    document.getElementById("subscriber_count").textContent = "SubscriberCount: " + response_videodata.author.subscriber_count;
+                                    document.getElementById("verified").textContent = "Verified: " + response_videodata.author.verified;
+                                    document.getElementById("thumbnail").src = response_videodata.thumbnail;
+                                    audioPlayer.play();
+                                })
+                                .catch(error => {
+                                    console.error('There has been a problem with your fetch operation:', error);
+                                });
+                            break;
+                        case "mp4":
+                            fetch("/api/download/video?url=" + encodeURIComponent(url), {
+                                method: "GET",
+                                headers: {
+                                    "Content-Type": "application/x-www-form-urlencoded"
+                                },
+                            })
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error('Network response was not ok');
+                                    }
+                                    return response.blob();
+                                })
+                                .then(blob => {
+                                    // BlobオブジェクトをURLに変換して、オーディオ要素にセット
+                                    const url = window.URL.createObjectURL(blob);
+                                    const videoPlayer = document.getElementById("videoPlayer");
+                                    videoPlayer.src = url;
+                                    videoPlayer.style.display = "block";
+                                    const audioPlayer = document.getElementById("audioPlayer");
+                                    audioPlayer.style.display = "none";
+                                    if (audioPlayer.src) {
+                                        audioPlayer.src = "";
+                                    }
+                                    videoPlayer.title = response_videodata.title + ".mp4";
+                                    const musicinfo = document.getElementById("musicinfo");
+                                    musicinfo.style.display = "block";
+                                    document.getElementById("title").textContent = "Title: " + response_videodata.title;
+                                    document.getElementById("url").textContent = "URL: " + response_videodata.url;
+                                    document.getElementById("totalsec").textContent = "TotalSec: " + response_videodata.totalsec;
+                                    document.getElementById("viewcount").textContent = "ViewCount: " + response_videodata.viewcount;
+                                    document.getElementById("author").textContent = "Author: " + response_videodata.author.name;
+                                    document.getElementById("authorurl").setAttribute("href", response_videodata.author.url);
+                                    document.getElementById("authorurl").textContent = "Author URL: " + response_videodata.author.url;
+                                    document.getElementById("subscriber_count").textContent = "SubscriberCount: " + response_videodata.author.subscriber_count;
+                                    document.getElementById("verified").textContent = "Verified: " + response_videodata.author.verified;
+                                    document.getElementById("thumbnail").src = response_videodata.thumbnail;
+                                    videoPlayer.play();
+                                })
+                                .catch(error => {
+                                    console.error('There has been a problem with your fetch operation:', error);
+                                });
+                            break;
+                    }
+                }).catch(error => {
+                    console.error('There has been a problem with your fetch operation:', error);
+                });
+        });
+    </script>
+</body>
+
+</html>
