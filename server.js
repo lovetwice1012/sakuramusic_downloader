@@ -4,15 +4,46 @@ const bodyParser = require('body-parser');
 const ytdl = require('ytdl-core');
 const path = require('path');
 const ytdlm = require('ytdl-core-muxer');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require("ffmpeg-static")
+
+process.on('uncaughtException', function (err) {    
+    console.log(err);
+});
+
+process.on('unhandledRejection', function (err) {    
+    console.log(err);
+});
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public_html')));
 
-app.get('/api/download/audio', async (req, res) => {
+app.get('/api/download/audio/opus', async (req, res) => {
     const url = decodeURIComponent(req.query.url); 
     try {
         const audioStream = ytdl(url, { quality: 'highestaudio' });
         audioStream.pipe(res);
+    } catch (err) {
+        console.error('Error:', err);
+        res.status(500).send('Error');
+    }
+});
+
+app.get('/api/download/audio/mp3', async (req, res) => {
+    const url = decodeURIComponent(req.query.url); 
+    try {
+        const audioStream = ytdl(url, { quality: 'highestaudio' });
+        //ffmpegでopusからmp3に変換
+        ffmpeg(audioStream)
+            .setFfmpegPath(ffmpegPath)
+            .audioBitrate(128)
+            .format('mp3')
+            .on('end', () => {
+            })
+            .pipe(res, { end: true })
+        req.on('close', () => {
+            audioStream.destroy();
+        });
     } catch (err) {
         console.error('Error:', err);
         res.status(500).send('Error');

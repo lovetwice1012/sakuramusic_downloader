@@ -14,6 +14,8 @@
         <input type="text" id="url" name="url" required><br>
         <input type="radio" id="format" name="format" value="opus" checked>
         <label for="format">OPUS</label><br>
+        <input type="radio" id="format" name="format" value="mp3">
+        <label for="format">MP3</label><br>
         <input type="radio" id="format" name="format" value="mp4">
         <label for="format">MP4</label><br>
         <button type="submit">Download</button>
@@ -56,7 +58,7 @@
                     switch (format) {
                         case "opus":
 
-                            fetch("/api/download/audio?url=" + encodeURIComponent(url), {
+                            fetch("/api/download/audio/opus?url=" + encodeURIComponent(url), {
                                 method: "GET",
                                 headers: {
                                     "Content-Type": "application/x-www-form-urlencoded"
@@ -79,6 +81,48 @@
                                         videoPlayer.src = "";
                                     }
                                     audioPlayer.title = response_videodata.title + ".opus";
+                                    const musicinfo = document.getElementById("musicinfo");
+                                    musicinfo.style.display = "block";
+                                    document.getElementById("title").textContent = "Title: " + response_videodata.title;
+                                    document.getElementById("url").textContent = "URL: " + response_videodata.url;
+                                    document.getElementById("totalsec").textContent = "TotalSec: " + response_videodata.totalsec;
+                                    document.getElementById("viewcount").textContent = "ViewCount: " + response_videodata.viewcount;
+                                    document.getElementById("author").textContent = "Author: " + response_videodata.author.name;
+                                    document.getElementById("authorurl").setAttribute("href", response_videodata.author.url);
+                                    document.getElementById("authorurl").textContent = "Author URL: " + response_videodata.author.url;
+                                    document.getElementById("subscriber_count").textContent = "SubscriberCount: " + response_videodata.author.subscriber_count;
+                                    document.getElementById("verified").textContent = "Verified: " + response_videodata.author.verified;
+                                    document.getElementById("thumbnail").src = response_videodata.thumbnail;
+                                    audioPlayer.play();
+                                })
+                                .catch(error => {
+                                    console.error('There has been a problem with your fetch operation:', error);
+                                });
+                            break;
+                        case "mp3":
+                            fetch("/api/download/audio/mp3?url=" + encodeURIComponent(url), {
+                                method: "GET",
+                                headers: {
+                                    "Content-Type": "application/x-www-form-urlencoded"
+                                },
+                            })
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error('Network response was not ok');
+                                    }
+                                    return response.blob();
+                                })
+                                .then(blob => {
+                                    const url = window.URL.createObjectURL(blob);
+                                    const audioPlayer = document.getElementById("audioPlayer");
+                                    audioPlayer.src = url;
+                                    audioPlayer.style.display = "block";
+                                    const videoPlayer = document.getElementById("videoPlayer");
+                                    videoPlayer.style.display = "none";
+                                    if (videoPlayer.src) {
+                                        videoPlayer.src = "";
+                                    }
+                                    audioPlayer.title = response_videodata.title + ".mp3";
                                     const musicinfo = document.getElementById("musicinfo");
                                     musicinfo.style.display = "block";
                                     document.getElementById("title").textContent = "Title: " + response_videodata.title;
