@@ -22,6 +22,8 @@
         <label for="format">MP3</label><br>
         <input type="radio" id="format" name="format" value="mp4">
         <label for="format">MP4</label><br>
+        <input type="checkbox" id="directdownload" name="directdownload">
+        <label for="directdownload">Direct Download</label><br>
         <button id="submit" type="submit">Download</button>
     </form>
     <div id="musicinfo" style="display: none;">
@@ -35,16 +37,137 @@
         <p id="verified"></p>
         <p>Thumbnail:</p>
         <img id="thumbnail" src="" alt="">
+        <p><a id="resultURL" href="">If you want Share this results to anyone, use this link.</a></p>
     </div>
     <audio id="audioPlayer" controls style="display:none;"></audio>
     <video id="videoPlayer" controls style="display:none;"></video>
 
     <script>
+        let ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;;
+        window.onload = function () {
+            if(ios){
+                const directdownload = document.getElementById("directdownload");
+                directdownload.checked = true;
+                directdownload.disabled = true;
+            }
+
+            //check if url parameter exists
+            const url = new URL(window.location.href);
+            const urlParams = url.searchParams;
+            const urlParamUrl = urlParams.get("url");
+            const urlParamFormat = urlParams.get("format");
+            if (urlParamFormat) {
+                document.querySelector('input[name="format"][value="' + urlParamFormat + '"]').checked = true;
+            }
+            if (urlParamUrl) {
+                document.getElementById("url").value = urlParamUrl;
+                document.getElementById("submit").click();
+            }
+
+        }
         document.getElementById("downloadForm").addEventListener("submit", function (event) {
             event.preventDefault();
 
             const submit = document.getElementById("submit");
             submit.disabled = true;
+
+            const resultURL = document.getElementById("resultURL");
+            resultURL.href = window.location.href + "?url=" + encodeURIComponent(document.getElementById("url").value) + "&format=" + document.querySelector('input[name="format"]:checked').value;
+
+            const directdownload = document.getElementById("directdownload");
+            if (directdownload.checked) {
+                const url = document.getElementById("url").value;
+                const format = document.querySelector('input[name="format"]:checked').value;
+                switch (format) {
+                    case "opus":
+                        //get music data
+                        fetch("/api/getInfo?url=" + encodeURIComponent(url), {
+                            method: "GET",
+                            headers: {
+                                "Content-Type": "application/x-www-form-urlencoded",
+                                "Accept": "application/json"
+                            },
+                        })
+                            .then(response_videodata => {
+                                if (!response_videodata.ok) {
+                                    submit.disabled = false;
+                                    throw new Error('Network response was not ok');
+                                }
+                                return response_videodata.json();
+                            })
+                            .then(response_videodata => {
+                                //download music
+                                const link = document.createElement('a')
+                                link.download = response_videodata.title + ".opus"
+                                link.href = "/api/download/audio/opus?url=" + encodeURIComponent(url)
+                                link.click()
+                                submit.disabled = false;
+                            })
+                            .catch(error => {
+                                submit.disabled = false;
+                                console.error('There has been a problem with your fetch operation:', error);
+                            });
+                        break;
+                    case "mp3":
+                        fetch("/api/getInfo?url=" + encodeURIComponent(url), {
+                            method: "GET",
+                            headers: {
+                                "Content-Type": "application/x-www-form-urlencoded",
+                                "Accept": "application/json"
+                            },
+                        })
+                            .then(response_videodata => {
+                                if (!response_videodata.ok) {
+                                    submit.disabled = false;
+                                    throw new Error('Network response was not ok');
+                                }
+                                return response_videodata.json();
+                            })
+                            .then(response_videodata => {
+                                //download music
+                                const link = document.createElement('a')
+                                link.download = response_videodata.title + ".mp3"
+                                link.href = "/api/download/audio/mp3?url=" + encodeURIComponent(url)
+                                link.click()
+                                submit.disabled = false;
+                            })
+                            .catch(error => {
+                                submit.disabled = false;
+                                console.error('There has been a problem with your fetch operation:', error);
+                            });
+                        break;
+                    case "mp4":
+                        fetch("/api/getInfo?url=" + encodeURIComponent(url), {
+                            method: "GET",
+                            headers: {
+                                "Content-Type": "application/x-www-form-urlencoded",
+                                "Accept": "application/json"
+                            },
+                        })
+                            .then(response_videodata => {
+                                if (!response_videodata.ok) {
+                                    submit.disabled = false;
+                                    throw new Error('Network response was not ok');
+                                }
+                                return response_videodata.json();
+                            })
+                            .then(response_videodata => {
+                                //download music
+                                const link = document.createElement('a')
+                                link.download = response_videodata.title + ".mp4"
+                                link.href = "/api/download/video?url=" + encodeURIComponent(url)
+                                link.click()
+                                submit.disabled = false;
+                            })
+                            .catch(error => {
+                                submit.disabled = false;
+                                console.error('There has been a problem with your fetch operation:', error);
+                            });
+                        break;
+                }
+                submit.disabled = false;
+                return;
+            }
 
             const status = document.getElementById("status");
             status.textContent = "Downloading...";
