@@ -45,7 +45,7 @@
     <script>
         let ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;;
         window.onload = function () {
-            if(ios){
+            if (ios) {
                 const directdownload = document.getElementById("directdownload");
                 directdownload.checked = true;
                 directdownload.disabled = true;
@@ -59,12 +59,85 @@
             if (urlParamFormat) {
                 document.querySelector('input[name="format"][value="' + urlParamFormat + '"]').checked = true;
             }
+
+            //check browser is support opus
+            const audio = new Audio();
+            if (audio.canPlayType("audio/ogg; codecs=opus") === "") {
+                const opus = document.querySelector('input[name="format"][value="opus"]');
+                opus.disabled = true;
+                if (opus.checked) {
+                    document.querySelector('input[name="format"][value="mp3"]').checked = true;
+                }
+            }
+
+            //check browser is support mp3
+            if (audio.canPlayType("audio/mpeg") === "") {
+                const mp3 = document.querySelector('input[name="format"][value="mp3"]');
+                mp3.disabled = true;
+                if (mp3.checked) {
+                    document.querySelector('input[name="format"][value="mp4"]').checked = true;
+                }
+            }
+
+            //check browser is support mp4
+            if (audio.canPlayType("video/mp4") === "") {
+                const mp4 = document.querySelector('input[name="format"][value="mp4"]');
+                mp4.disabled = true;
+                if (mp4.checked) {
+                    document.querySelector('input[name="format"][value="mp3"]').checked = true;
+                }
+            }
+
+            //if all formats are disabled
+            if (document.querySelectorAll('input[name="format"]:disabled').length === document.querySelectorAll('input[name="format"]').length) {
+                document.getElementById("status").textContent = "Status: Your browser does not support any formats.";
+                document.getElementById("status").style.color = "red";
+                document.getElementById("submit").disabled = true;
+            }
+
+            //if url parameter exists, download
             if (urlParamUrl) {
                 document.getElementById("url").value = urlParamUrl;
                 document.getElementById("submit").click();
             }
 
         }
+
+        function showMusicInfo(response_videodata) {
+            const musicinfo = document.getElementById("musicinfo");
+            musicinfo.style.display = "block";
+            document.getElementById("title").textContent = "Title: " + response_videodata.title;
+            document.getElementById("url").textContent = "URL: " + response_videodata.url;
+            document.getElementById("totalsec").textContent = "TotalSec: " + response_videodata.totalsec;
+            document.getElementById("viewcount").textContent = "ViewCount: " + response_videodata.viewcount;
+            document.getElementById("author").textContent = "Author: " + response_videodata.author.name;
+            document.getElementById("authorurl").setAttribute("href", response_videodata.author.url);
+            document.getElementById("authorurl").textContent = "Author URL: " + response_videodata.author.url;
+            document.getElementById("subscriber_count").textContent = "SubscriberCount: " + response_videodata.author.subscriber_count;
+            document.getElementById("verified").textContent = "Verified: " + response_videodata.author.verified;
+            document.getElementById("thumbnail").src = response_videodata.thumbnail;
+        }
+
+        function responseCheckAndReturnJson(response, statusMessage = "Status: Failed to get video data.", statusColor = "red") {
+            if (!response.ok) {
+                document.getElementById("status").textContent = statusMessage;
+                document.getElementById("status").style.color = statusColor;
+                document.getElementById("submit").disabled = false;
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        }
+
+        function responseCheckAndReturnBlob(response, statusMessage = "Status: Failed to download.", statusColor = "red") {
+            if (!response.ok) {
+                document.getElementById("status").textContent = statusMessage;
+                document.getElementById("status").style.color = statusColor;
+                document.getElementById("submit").disabled = false;
+                throw new Error('Network response was not ok');
+            }
+            return response.blob();
+        }
+
         document.getElementById("downloadForm").addEventListener("submit", function (event) {
             event.preventDefault();
 
@@ -72,99 +145,47 @@
             submit.disabled = true;
 
             const resultURL = document.getElementById("resultURL");
-            resultURL.href = window.location.href + "?url=" + encodeURIComponent(document.getElementById("url").value) + "&format=" + document.querySelector('input[name="format"]:checked').value;
+            const uri = new URL(window.location.href);
+            resultURL.href = uri.origin + uri.pathname + "?url=" + encodeURIComponent(document.getElementById("url").value) + "&format=" + document.querySelector('input[name="format"]:checked').value;
 
             const directdownload = document.getElementById("directdownload");
             if (directdownload.checked) {
                 const url = document.getElementById("url").value;
                 const format = document.querySelector('input[name="format"]:checked').value;
-                switch (format) {
-                    case "opus":
-                        //get music data
-                        fetch("/api/getInfo?url=" + encodeURIComponent(url), {
-                            method: "GET",
-                            headers: {
-                                "Content-Type": "application/x-www-form-urlencoded",
-                                "Accept": "application/json"
-                            },
-                        })
-                            .then(response_videodata => {
-                                if (!response_videodata.ok) {
-                                    submit.disabled = false;
-                                    throw new Error('Network response was not ok');
-                                }
-                                return response_videodata.json();
-                            })
-                            .then(response_videodata => {
-                                //download music
-                                const link = document.createElement('a')
+                //get music data
+                fetch("/api/getInfo?url=" + encodeURIComponent(url), {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "Accept": "application/json"
+                    },
+                })
+                    .then(response_videodata => {
+                        return responseCheckAndReturnJson(response_videodata);
+                    })
+                    .then(response_videodata => {
+                        const link = document.createElement('a')
+                        switch (format) {
+                            case "opus":
                                 link.download = response_videodata.title + ".opus"
                                 link.href = "/api/download/audio/opus?url=" + encodeURIComponent(url)
-                                link.click()
-                                submit.disabled = false;
-                            })
-                            .catch(error => {
-                                submit.disabled = false;
-                                console.error('There has been a problem with your fetch operation:', error);
-                            });
-                        break;
-                    case "mp3":
-                        fetch("/api/getInfo?url=" + encodeURIComponent(url), {
-                            method: "GET",
-                            headers: {
-                                "Content-Type": "application/x-www-form-urlencoded",
-                                "Accept": "application/json"
-                            },
-                        })
-                            .then(response_videodata => {
-                                if (!response_videodata.ok) {
-                                    submit.disabled = false;
-                                    throw new Error('Network response was not ok');
-                                }
-                                return response_videodata.json();
-                            })
-                            .then(response_videodata => {
-                                //download music
-                                const link = document.createElement('a')
+                                break;
+                            case "mp3":
                                 link.download = response_videodata.title + ".mp3"
                                 link.href = "/api/download/audio/mp3?url=" + encodeURIComponent(url)
-                                link.click()
-                                submit.disabled = false;
-                            })
-                            .catch(error => {
-                                submit.disabled = false;
-                                console.error('There has been a problem with your fetch operation:', error);
-                            });
-                        break;
-                    case "mp4":
-                        fetch("/api/getInfo?url=" + encodeURIComponent(url), {
-                            method: "GET",
-                            headers: {
-                                "Content-Type": "application/x-www-form-urlencoded",
-                                "Accept": "application/json"
-                            },
-                        })
-                            .then(response_videodata => {
-                                if (!response_videodata.ok) {
-                                    submit.disabled = false;
-                                    throw new Error('Network response was not ok');
-                                }
-                                return response_videodata.json();
-                            })
-                            .then(response_videodata => {
-                                //download music
-                                const link = document.createElement('a')
+                                break;
+                            case "mp4":
                                 link.download = response_videodata.title + ".mp4"
                                 link.href = "/api/download/video?url=" + encodeURIComponent(url)
-                                link.click()
-                                submit.disabled = false;
-                            })
-                            .catch(error => {
-                                submit.disabled = false;
-                                console.error('There has been a problem with your fetch operation:', error);
-                            });
-                        break;
-                }
+                                break;
+                        }
+                        link.click()
+                        submit.disabled = false;
+                    })
+                    .catch(error => {
+                        submit.disabled = false;
+                        console.error('There has been a problem with your fetch operation:', error);
+                    });
                 submit.disabled = false;
                 return;
             }
@@ -183,18 +204,11 @@
                 },
             })
                 .then(response_videodata => {
-                    if (!response_videodata.ok) {
-                        status.textContent = "Status: Failed to get video data.";
-                        status.style.color = "red";
-                        submit.disabled = false;
-                        throw new Error('Network response was not ok');
-                    }
-                    return response_videodata.json();
+                    return responseCheckAndReturnJson(response_videodata);
                 })
                 .then(response_videodata => {
                     switch (format) {
                         case "opus":
-
                             fetch("/api/download/audio/opus?url=" + encodeURIComponent(url), {
                                 method: "GET",
                                 headers: {
@@ -202,13 +216,7 @@
                                 },
                             })
                                 .then(response => {
-                                    if (!response.ok) {
-                                        status.textContent = "Status: Failed to download.";
-                                        status.style.color = "red";
-                                        submit.disabled = false;
-                                        throw new Error('Network response was not ok');
-                                    }
-                                    return response.blob();
+                                    return responseCheckAndReturnBlob(response);
                                 })
                                 .then(blob => {
                                     const url = window.URL.createObjectURL(blob);
@@ -221,18 +229,7 @@
                                         videoPlayer.src = "";
                                     }
                                     audioPlayer.title = response_videodata.title + ".opus";
-                                    const musicinfo = document.getElementById("musicinfo");
-                                    musicinfo.style.display = "block";
-                                    document.getElementById("title").textContent = "Title: " + response_videodata.title;
-                                    document.getElementById("url").textContent = "URL: " + response_videodata.url;
-                                    document.getElementById("totalsec").textContent = "TotalSec: " + response_videodata.totalsec;
-                                    document.getElementById("viewcount").textContent = "ViewCount: " + response_videodata.viewcount;
-                                    document.getElementById("author").textContent = "Author: " + response_videodata.author.name;
-                                    document.getElementById("authorurl").setAttribute("href", response_videodata.author.url);
-                                    document.getElementById("authorurl").textContent = "Author URL: " + response_videodata.author.url;
-                                    document.getElementById("subscriber_count").textContent = "SubscriberCount: " + response_videodata.author.subscriber_count;
-                                    document.getElementById("verified").textContent = "Verified: " + response_videodata.author.verified;
-                                    document.getElementById("thumbnail").src = response_videodata.thumbnail;
+                                    showMusicInfo(response_videodata);
                                     status.textContent = "Status: SUCCESS!!";
                                     status.style.color = "green";
                                     submit.disabled = false;
@@ -253,13 +250,7 @@
                                 },
                             })
                                 .then(response => {
-                                    if (!response.ok) {
-                                        status.textContent = "Status: Failed to download.";
-                                        status.style.color = "red";
-                                        submit.disabled = false;
-                                        throw new Error('Network response was not ok');
-                                    }
-                                    return response.blob();
+                                    return responseCheckAndReturnBlob(response);
                                 })
                                 .then(blob => {
                                     const url = window.URL.createObjectURL(blob);
@@ -272,18 +263,7 @@
                                         videoPlayer.src = "";
                                     }
                                     audioPlayer.title = response_videodata.title + ".mp3";
-                                    const musicinfo = document.getElementById("musicinfo");
-                                    musicinfo.style.display = "block";
-                                    document.getElementById("title").textContent = "Title: " + response_videodata.title;
-                                    document.getElementById("url").textContent = "URL: " + response_videodata.url;
-                                    document.getElementById("totalsec").textContent = "TotalSec: " + response_videodata.totalsec;
-                                    document.getElementById("viewcount").textContent = "ViewCount: " + response_videodata.viewcount;
-                                    document.getElementById("author").textContent = "Author: " + response_videodata.author.name;
-                                    document.getElementById("authorurl").setAttribute("href", response_videodata.author.url);
-                                    document.getElementById("authorurl").textContent = "Author URL: " + response_videodata.author.url;
-                                    document.getElementById("subscriber_count").textContent = "SubscriberCount: " + response_videodata.author.subscriber_count;
-                                    document.getElementById("verified").textContent = "Verified: " + response_videodata.author.verified;
-                                    document.getElementById("thumbnail").src = response_videodata.thumbnail;
+                                    showMusicInfo(response_videodata);
                                     status.textContent = "Status: SUCCESS!!";
                                     status.style.color = "green";
                                     submit.disabled = false;
@@ -304,13 +284,7 @@
                                 },
                             })
                                 .then(response => {
-                                    if (!response.ok) {
-                                        status.textContent = "Status: Failed to download.";
-                                        status.style.color = "red";
-                                        submit.disabled = false;
-                                        throw new Error('Network response was not ok');
-                                    }
-                                    return response.blob();
+                                    return responseCheckAndReturnBlob(response, "Status: Failed to download video.");
                                 })
                                 .then(blob => {
                                     // BlobオブジェクトをURLに変換して、オーディオ要素にセット
@@ -324,18 +298,7 @@
                                         audioPlayer.src = "";
                                     }
                                     videoPlayer.title = response_videodata.title + ".mp4";
-                                    const musicinfo = document.getElementById("musicinfo");
-                                    musicinfo.style.display = "block";
-                                    document.getElementById("title").textContent = "Title: " + response_videodata.title;
-                                    document.getElementById("url").textContent = "URL: " + response_videodata.url;
-                                    document.getElementById("totalsec").textContent = "TotalSec: " + response_videodata.totalsec;
-                                    document.getElementById("viewcount").textContent = "ViewCount: " + response_videodata.viewcount;
-                                    document.getElementById("author").textContent = "Author: " + response_videodata.author.name;
-                                    document.getElementById("authorurl").setAttribute("href", response_videodata.author.url);
-                                    document.getElementById("authorurl").textContent = "Author URL: " + response_videodata.author.url;
-                                    document.getElementById("subscriber_count").textContent = "SubscriberCount: " + response_videodata.author.subscriber_count;
-                                    document.getElementById("verified").textContent = "Verified: " + response_videodata.author.verified;
-                                    document.getElementById("thumbnail").src = response_videodata.thumbnail;
+                                    showMusicInfo(response_videodata);
                                     status.textContent = "Status: SUCCESS!!";
                                     status.style.color = "green";
                                     submit.disabled = false;

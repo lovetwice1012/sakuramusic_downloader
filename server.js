@@ -7,11 +7,11 @@ const ytdlm = require('ytdl-core-muxer');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require("ffmpeg-static")
 
-process.on('uncaughtException', function (err) {    
+process.on('uncaughtException', function (err) {
     console.log(err);
 });
 
-process.on('unhandledRejection', function (err) {    
+process.on('unhandledRejection', function (err) {
     console.log(err);
 });
 
@@ -19,7 +19,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public_html')));
 
 app.get('/api/download/audio/opus', async (req, res) => {
-    const url = decodeURIComponent(req.query.url); 
+    const url = decodeURIComponent(req.query.url);
     try {
         const audioStream = ytdl(url, { quality: 'highestaudio' });
         audioStream.pipe(res);
@@ -30,7 +30,7 @@ app.get('/api/download/audio/opus', async (req, res) => {
 });
 
 app.get('/api/download/audio/mp3', async (req, res) => {
-    const url = decodeURIComponent(req.query.url); 
+    const url = decodeURIComponent(req.query.url);
     try {
         const audioStream = ytdl(url, { quality: 'highestaudio' });
         //ffmpegでopusからmp3に変換
@@ -51,7 +51,7 @@ app.get('/api/download/audio/mp3', async (req, res) => {
 });
 
 app.get('/api/download/video', async (req, res) => {
-    const url = decodeURIComponent(req.query.url); 
+    const url = decodeURIComponent(req.query.url);
     try {
         const video = ytdlm(url);
         video.pipe(res);
