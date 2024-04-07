@@ -50,7 +50,7 @@ app.get('/api/download/audio/mp3', async (req, res) => {
     }
 });
 
-app.get('/api/download/video', async (req, res) => {
+app.get('/api/download/video/mp4', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
     try {
         const video = ytdlm(url);
