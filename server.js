@@ -6,6 +6,7 @@ const path = require('path');
 const ytdlm = require('ytdl-core-muxer');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require("ffmpeg-static")
+const play = require('play-dl');
 
 process.on('uncaughtException', function (err) {
     console.log(err);
@@ -87,6 +88,65 @@ app.get('/api/getInfo', async (req, res) => {
         res.status(500).send('Error');
     }
 });
+
+app.get('/api/search', async (req, res) => {
+    const query = req.query.query;
+    const limit = req.query.limit ?? 10;
+
+    try {
+        const searchResult = await play.search(query, { limit: limit });
+        const searchResultMapped = searchResult.map(video => {
+            return {
+                title: video.title,
+                url: video.url,
+                totalsec: video.durationInSec,
+                viewcount: video.views,
+                author: {
+                    name: video.channel.name,
+                    url: video.channel.url,
+                    subscriber_count: video.channel.subscribers,
+                    verified: video.channel.verified,
+                },
+                thumbnail: video.thumbnails[Object.keys(video.thumbnails).length - 1].url
+            }
+        })
+        
+
+        res.json(searchResultMapped);
+    } catch (err) {
+        console.error('Error:', err);
+        res.status(500).send('Error');
+    }
+});
+
+app.get('/api/getPlaylist', async (req, res) => {
+    const url = req.query.url;
+
+    try {
+        const playlist = await play.playlist_info(url, { incomplete : true })
+        const videos = await playlist.all_videos()
+        const playlistInfo = videos.map(video => {
+            return {
+                title: video.title,
+                url: video.url,
+                totalsec: video.durationInSec,
+                viewcount: video.views,
+                author: {
+                    name: video.channel.name,
+                    url: video.channel.url,
+                    subscriber_count: video.channel.subscribers,
+                    verified: video.channel.verified,
+                },
+                thumbnail: video.thumbnails[Object.keys(video.thumbnails).length - 1].url
+            }
+        })
+
+        res.json(playlistInfo);
+    } catch (err) {
+        console.error('Error:', err);
+        res.status(500).send('Error');
+    }
+})
 
 const PORT = 3051;
 app.listen(PORT, () => {

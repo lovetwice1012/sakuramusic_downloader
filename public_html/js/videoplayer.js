@@ -114,7 +114,7 @@ window.onload = function () {
                 reportFetchError(error);
             });
     });
-    
+
     let ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     if (ios) {
         const directdownload = document.getElementById("directdownload");
@@ -181,7 +181,7 @@ window.onload = function () {
         document.getElementById("viewcount").textContent = "ViewCount: " + response_videodata.viewcount;
         document.getElementById("author").textContent = "Author: " + response_videodata.author.name;
         document.getElementById("authorurl").setAttribute("href", response_videodata.author.url);
-        document.getElementById("authorurl").textContent = "Author URL: " + response_videodata.author.url;
+        document.getElementById("authorurl").textContent = response_videodata.author.url;
         document.getElementById("subscriber_count").textContent = "SubscriberCount: " + response_videodata.author.subscriber_count;
         document.getElementById("verified").textContent = "Verified: " + response_videodata.author.verified;
         document.getElementById("thumbnail").src = response_videodata.thumbnail;
