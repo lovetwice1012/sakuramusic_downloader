@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>SakuraMusic V2 Youtube Blocker Bypass</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .search-bar-container {
+            background-color: #8a2be2;
+            padding: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        #search-bar {
+            width: 45%;
+            padding: 10px;
+            border-radius: 20px;
+            border: none;
+            margin-right: 10px;
+        }
+
+        .search-button {
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .video-container {
+            margin-top: 10px;
+        }
+
+        #dropdown {
+            display: none;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="search-bar-container">
+        <input type="text" id="search-bar" placeholder="動画を検索">
+        <button class="search-button" onclick="searchVideos()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                <path
+                    d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+            </svg>
+        </button>
+    </div>
+
+    <select id="dropdown" onchange="showVideo()">
+    </select>
+    <h3 style="color: aqua; display: none; margin: 0 auto;" id="downloading">動画をダウンロード中です</h3>
+    <div class="video-container" id="video-container">
+
+    </div>
+
+    <script>
+        // この関数は、検索バーでの検索に使用されます。
+        function searchVideos() {
+            const searchBar = document.getElementById('search-bar');
+            const query = searchBar.value;
+            if (query === '') return;
+            if (query.startsWith('https://www.youtube.com') || query.startsWith('https://music.youtube.com') || query.startsWith("https://youtu.be") || query.startsWith("https://m.youtube.com")) {
+                //urlの場合はgetInfo()を呼び出す
+                fetch(`/api/getInfo?url=${query}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            return alert('Error: ' + response.status);
+                        }
+                        return response.json();
+                    })
+                    .then(video => {
+                        const option = document.createElement('option');
+                        option.value = "/api/download/video/mp4/?url=" + video.url; 
+                        option.textContent = video.title; 
+                        dropdown.appendChild(option);
+                        dropdown.style.display = 'block'; // 結果がある場合のみ表示
+                        showVideo();
+                    })
+                return;
+            }
+            fetch(`/api/search?query=${query}`)
+                .then(response => response.json())
+                .then(data => {
+                    const dropdown = document.getElementById('dropdown');
+                    dropdown.innerHTML = ''; // ドロップダウンをクリア
+                    if (data.length > 0) {
+                        const defaultOption = document.createElement('option');
+                        defaultOption.textContent = 'Select a video';
+                        defaultOption.disabled = true;
+                        defaultOption.selected = true;
+                        dropdown.appendChild(defaultOption);
+                        data.forEach(video => {
+                            const option = document.createElement('option');
+                            option.value = "/api/download/video/mp4/?url=" + video.url; 
+                            option.textContent = video.title; 
+                            dropdown.appendChild(option);
+                        });
+                        dropdown.style.display = 'block'; // 結果がある場合のみ表示
+                    } else {
+                        dropdown.style.display = 'none'; // 結果がない場合は非表示
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // この関数は、ドロップダウンから動画を選択したときに呼び出されます。
+        function showVideo() {
+            const downloading = document.getElementById('downloading');
+            downloading.style.display = 'block';
+            let i = 1;
+            const downloadingInterval = setInterval(() => {
+                if (downloading.style.display === 'block') {
+                    downloading.textContent = '動画をダウンロード中です' + '.'.repeat(i);
+                }
+                i = i % 3 + 1;
+            }, 200);
+            const dropdown = document.getElementById('dropdown');
+            const videoUrl = dropdown.value;
+            const videoContainer = document.getElementById('video-container');
+            fetch(videoUrl, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Status: " + response.status);
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const video = document.createElement('video');
+                    video.src = url;
+                    video.controls = true;
+                    video.style.display = 'block';
+                    video.style.margin = '0 auto';
+                    video.autoplay = true;
+                    video.width = 1080;
+                    videoContainer.innerHTML = '';
+                    videoContainer.appendChild(video);
+                    clearInterval(downloadingInterval);
+                    downloading.style.display = 'none';
+                })
+                .catch(error => {
+                    reportFetchError(error, "Status: Failed to download video.");
+                })
+        }
+    </script>
+</body>
+
+</html>
