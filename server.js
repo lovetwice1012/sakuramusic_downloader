@@ -14,7 +14,7 @@ const agentOptions = {
     },
 }
 const cookiesPath = path.join(__dirname, 'cookies.json');
-const cookiesContent = fs.readFileSync(cookiesPath, 'utf8');
+const cookiesContent = JSON.parse(fs.readFileSync(cookiesPath, 'utf8'));
 const agent = ytdl.createAgent(cookiesContent, agentOptions);
 
 process.on('uncaughtException', function (err) {
