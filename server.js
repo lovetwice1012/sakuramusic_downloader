@@ -65,7 +65,7 @@ app.get('/api/download/video/mp4', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
     if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-        const video = ytdlm(url);
+        const video = ytdlm(url, agent);
         video.pipe(res);
     } catch (err) {
         console.error('Error:', err);
