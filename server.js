@@ -13,7 +13,7 @@ const agentOptions = {
         referer: "https://www.youtube.com/",
     },
 }
-const cookiesPath = path.join(__dirname, '..', 'cookies.json');
+const cookiesPath = path.join(__dirname, 'cookies.json');
 const cookiesContent = fs.readFileSync(cookiesPath, 'utf8');
 const agent = ytdl.createAgent(cookiesContent, agentOptions);
 
