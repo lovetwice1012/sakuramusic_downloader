@@ -7,6 +7,14 @@ const ytdlm = require('ytdl-core-muxer');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require("ffmpeg-static")
 const play = require('play-dl');
+const agentOptions = {
+    headers: {
+        referer: "https://www.youtube.com/",
+    },
+}
+const cookiesPath = path.join(__dirname, '..', 'cookies.json');
+const cookiesContent = fs.readFileSync(cookiesPath, 'utf8');
+const agent = ytdl.createAgent(cookiesContent, agentOptions);
 
 process.on('uncaughtException', function (err) {
     console.log(err);
@@ -21,8 +29,9 @@ app.use(express.static(path.join(__dirname, 'public_html')));
 
 app.get('/api/download/audio/opus', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
+    if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-        const audioStream = ytdl(url, { quality: 'highestaudio' });
+        const audioStream = ytdl(url, { quality: 'highestaudio' , agent:agent});
         audioStream.pipe(res);
     } catch (err) {
         console.error('Error:', err);
@@ -32,8 +41,9 @@ app.get('/api/download/audio/opus', async (req, res) => {
 
 app.get('/api/download/audio/mp3', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
+    if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-        const audioStream = ytdl(url, { quality: 'highestaudio' });
+        const audioStream = ytdl(url, { quality: 'highestaudio' , agent:agent}});
         //ffmpegでopusからmp3に変換
         ffmpeg(audioStream)
             .setFfmpegPath(ffmpegPath)
@@ -53,6 +63,7 @@ app.get('/api/download/audio/mp3', async (req, res) => {
 
 app.get('/api/download/video/mp4', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
+    if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
         const video = ytdlm(url);
         video.pipe(res);
@@ -64,9 +75,10 @@ app.get('/api/download/video/mp4', async (req, res) => {
 
 app.get('/api/getInfo', async (req, res) => {
     const url = req.query.url;
+    if (!ytdl.validateURL(url)) return res.status(500).send('Error');
 
     try {
-        const songInfo = await ytdl.getInfo(url);
+        const songInfo = await ytdl.getInfo(url,{ agent:agent});
 
         const musicInfo = {
             title: songInfo.videoDetails.title,
