@@ -7,6 +7,7 @@ const ytdlm = require('ytdl-core-muxer');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require("ffmpeg-static")
 const play = require('play-dl');
+const fs = require("fs")
 const agentOptions = {
     headers: {
         referer: "https://www.youtube.com/",
