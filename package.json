@@ -6,6 +6,6 @@
     "fluent-ffmpeg": "^2.1.2",
     "play-dl": "^1.9.7",
     "ytdl-core": "^4.11.5",
-    "ytdl-core-muxer": "^1.0.1"
+    "ytdl-core-muxer": "lovetwice1012/ytdl-core-muxer-fix.git#main"
   }
 }
