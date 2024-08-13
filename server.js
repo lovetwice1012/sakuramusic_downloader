@@ -43,7 +43,7 @@ app.get('/api/download/audio/mp3', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
     if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-        const audioStream = ytdl(url, { quality: 'highestaudio' , agent:agent}});
+        const audioStream = ytdl(url, { quality: 'highestaudio' , agent:agent});
         //ffmpegでopusからmp3に変換
         ffmpeg(audioStream)
             .setFfmpegPath(ffmpegPath)
