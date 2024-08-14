@@ -67,7 +67,7 @@ app.get('/api/download/video/mp4', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
     if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-    const ytmux = (link, agent, options = {}) => {
+    const ytdlm = (link, agent, options = {}) => {
     const result = new stream.PassThrough({ highWaterMark: options.highWaterMark || 1024 * 512 });
     ytdl.getInfo(link, options).then(info => {
         audioStream = ytdl(link, {quality: 'highestaudio', agent: agent });
