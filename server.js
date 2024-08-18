@@ -81,7 +81,7 @@ app.get('/api/download/video/mp4', async (req, res) => {
         // map audio and video correspondingly
         '-map', '0:a', '-map', '1:v',
         // specify the video codec as HEVC (H.265)
-        '-c:v', 'libx265',
+        '-c:v', 'copy',
         // specify the audio codec as MP3
         '-c:a', 'libmp3lame',
         // set the audio bitrate for MP3 to 320kbps
