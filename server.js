@@ -81,11 +81,11 @@ app.get('/api/download/video/mp4', async (req, res) => {
         // map audio and video correspondingly
         '-map', '0:a', '-map', '1:v',
         // specify the video codec as HEVC (H.265)
-        '-c:v', 'copy',
+        '-c:v', 'libx264',
         // specify the audio codec as MP3
-        '-c:a', 'libmp3lame',
+        '-c:a', 'copy',
         // set the audio bitrate for MP3 to 320kbps
-        '-b:a', '320k',
+        //'-b:a', '320k',
         // output format as mp4 or matroska (mkv)
         '-f', 'matroska', 'pipe:5'
     ], {
