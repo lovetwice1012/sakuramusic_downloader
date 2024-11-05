@@ -118,21 +118,21 @@ app.get('/api/getInfo', async (req, res) => {
     //if (!ytdl.validateURL(url)) return res.status(500).send('Error');
 
     try {
-        const songInfo = await ytdl.getInfo(url/*,{ agent:agent}*/);
+        const songInfo = await play.video_info(url/*,{ agent:agent}*/);
 
         const musicInfo = {
-            title: songInfo.videoDetails.title,
-            url: songInfo.videoDetails.video_url,
-            totalsec: songInfo.videoDetails.lengthSeconds,
-            viewcount: songInfo.videoDetails.viewCount,
-            author: {
-                name: songInfo.videoDetails.author.name,
-                url: songInfo.videoDetails.author.channel_url,
-                subscriber_count: songInfo.videoDetails.author.subscriber_count,
-                verified: songInfo.videoDetails.author.verified
-            },
-            thumbnail: songInfo.videoDetails.thumbnails[Object.keys(songInfo.videoDetails.thumbnails).length - 1].url
-        }
+    title: songInfo.video_details.title,
+    url: songInfo.video_details.url,
+    totalsec: songInfo.video_details.durationInSec,
+    viewcount: songInfo.video_details.views,
+    author: {
+        name: songInfo.video_details.channel.name,
+        url: songInfo.video_details.channel.url,
+        subscriber_count: songInfo.video_details.channel.subscribers,
+        verified: songInfo.video_details.channel.verified
+    },
+    thumbnail: songInfo.video_details.thumbnails[songInfo.video_details.thumbnails.length - 1].url
+}
 
         res.json(musicInfo);
     } catch (err) {
