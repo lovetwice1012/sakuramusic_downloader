@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
-const ytdl = require("@ybd-project/ytdl-core");
+//const ytdl = require("@ybd-project/ytdl-core");
 const path = require('path');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require("ffmpeg-static")
@@ -33,7 +33,7 @@ app.get('/api/download/audio/opus', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
     //if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-        const audioStream = ytdl.YtdlCore(url, { quality: 'highestaudio' /*, agent:agent*/});
+        const audioStream = play.stream(url, { quality: 'highestaudio' /*, agent:agent*/});
         audioStream.pipe(res);
     } catch (err) {
         console.error('Error:', err);
@@ -45,7 +45,7 @@ app.get('/api/download/audio/mp3', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
     //if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-        const audioStream = ytdl.YtdlCore(url, { quality: 'highestaudio' /*, agent:agent*/});
+        const audioStream = play.stream(url, { quality: 'highestaudio' /*, agent:agent*/});
         //ffmpegでopusからmp3に変換
         ffmpeg(audioStream)
             .setFfmpegPath(ffmpegPath)
@@ -70,8 +70,8 @@ app.get('/api/download/video/mp4', async (req, res) => {
     const ytdlm = (link, agent, options = {}) => {
     const result = new stream.PassThrough({ highWaterMark: options.highWaterMark || 1024 * 512 });
     ytdl.getInfo(link, options).then(info => {
-        audioStream = ytdl.YtdlCore(link, {quality: 'highestaudio'/*, agent: agent */});
-        videoStream = ytdl.YtdlCore(link, {quality: 'highestvideo'/*, agent: agent */});
+        audioStream = play.stream(link, {quality: 'highestaudio'/*, agent: agent */});
+        videoStream = play.stream(link, {quality: 'highestvideo'/*, agent: agent */});
         // create the ffmpeg process for muxing
         ffmpegProcess = cp.spawn(ffmpegPath, [
         // supress non-crucial messages
