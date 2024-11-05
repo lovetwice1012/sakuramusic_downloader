@@ -1,4 +1,4 @@
-const express = require('express');
+/const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const ytdl = require("@ybd-project/ytdl-core");
@@ -16,7 +16,7 @@ const agentOptions = {
 }
 const cookiesPath = path.join(__dirname, 'cookies.json');
 const cookiesContent = JSON.parse(fs.readFileSync(cookiesPath, 'utf8'));
-const agent = ytdl.createAgent(cookiesContent, agentOptions);
+//const agent = ytdl.createAgent(cookiesContent, agentOptions);
 
 process.on('uncaughtException', function (err) {
     console.log(err);
@@ -33,7 +33,7 @@ app.get('/api/download/audio/opus', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
     if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-        const audioStream = ytdl(url, { quality: 'highestaudio' , agent:agent});
+        const audioStream = ytdl(url, { quality: 'highestaudio' /*, agent:agent*/});
         audioStream.pipe(res);
     } catch (err) {
         console.error('Error:', err);
@@ -45,7 +45,7 @@ app.get('/api/download/audio/mp3', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
     if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-        const audioStream = ytdl(url, { quality: 'highestaudio' , agent:agent});
+        const audioStream = ytdl(url, { quality: 'highestaudio' /*, agent:agent*/});
         //ffmpegでopusからmp3に変換
         ffmpeg(audioStream)
             .setFfmpegPath(ffmpegPath)
@@ -70,8 +70,8 @@ app.get('/api/download/video/mp4', async (req, res) => {
     const ytdlm = (link, agent, options = {}) => {
     const result = new stream.PassThrough({ highWaterMark: options.highWaterMark || 1024 * 512 });
     ytdl.getInfo(link, options).then(info => {
-        audioStream = ytdl(link, {quality: 'highestaudio', agent: agent });
-        videoStream = ytdl(link, {quality: 'highestvideo', agent: agent });
+        audioStream = ytdl(link, {quality: 'highestaudio'/*, agent: agent */});
+        videoStream = ytdl(link, {quality: 'highestvideo'/*, agent: agent */});
         // create the ffmpeg process for muxing
         ffmpegProcess = cp.spawn(ffmpegPath, [
         // supress non-crucial messages
@@ -118,7 +118,7 @@ app.get('/api/getInfo', async (req, res) => {
     if (!ytdl.validateURL(url)) return res.status(500).send('Error');
 
     try {
-        const songInfo = await ytdl.getInfo(url,{ agent:agent});
+        const songInfo = await ytdl.getInfo(url/*,{ agent:agent}*/);
 
         const musicInfo = {
             title: songInfo.videoDetails.title,
