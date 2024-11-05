@@ -33,8 +33,8 @@ app.get('/api/download/audio/opus', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
     //if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-        const audioStream = play.stream(url, { quality: 'highestaudio' /*, agent:agent*/});
-        audioStream.pipe(res);
+        const audioStream = await play.stream(url/*, { quality: 'highestaudio' , agent:agent}*/);
+        audioStream.stream.pipe(res);
     } catch (err) {
         console.error('Error:', err);
         res.status(500).send('Error');
@@ -45,9 +45,9 @@ app.get('/api/download/audio/mp3', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
     //if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-        const audioStream = play.stream(url, { quality: 'highestaudio' /*, agent:agent*/});
+        const audioStream = await play.stream(url/*, { quality: 'highestaudio' , agent:agent}*/);
         //ffmpegでopusからmp3に変換
-        ffmpeg(audioStream)
+        ffmpeg(audioStream.stream)
             .setFfmpegPath(ffmpegPath)
             .audioBitrate(128)
             .format('mp3')
@@ -70,8 +70,8 @@ app.get('/api/download/video/mp4', async (req, res) => {
     const ytdlm = (link, agent, options = {}) => {
     const result = new stream.PassThrough({ highWaterMark: options.highWaterMark || 1024 * 512 });
     ytdl.getInfo(link, options).then(info => {
-        audioStream = play.stream(link, {quality: 'highestaudio'/*, agent: agent */});
-        videoStream = play.stream(link, {quality: 'highestvideo'/*, agent: agent */});
+        audioStream = play.stream(link/*, {quality: 'highestaudio', agent: agent }*/);
+        videoStream = play.stream(link/*, {quality: 'highestvideo', agent: agent }*/);
         // create the ffmpeg process for muxing
         ffmpegProcess = cp.spawn(ffmpegPath, [
         // supress non-crucial messages
@@ -99,8 +99,8 @@ app.get('/api/download/video/mp4', async (req, res) => {
                 'pipe', 'pipe', 'pipe'
             ]
         });
-        audioStream.pipe(ffmpegProcess.stdio[3]);
-        videoStream.pipe(ffmpegProcess.stdio[4]);
+        audioStream.stream.pipe(ffmpegProcess.stdio[3]);
+        videoStream.stream.pipe(ffmpegProcess.stdio[4]);
         ffmpegProcess.stdio[5].pipe(result);
     });
     return result;
