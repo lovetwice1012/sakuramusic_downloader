@@ -31,7 +31,7 @@ app.use(express.static(path.join(__dirname, 'public_html')));
 
 app.get('/api/download/audio/opus', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
-    if (!ytdl.validateURL(url)) return res.status(500).send('Error');
+    //if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
         const audioStream = ytdl(url, { quality: 'highestaudio' /*, agent:agent*/});
         audioStream.pipe(res);
@@ -43,7 +43,7 @@ app.get('/api/download/audio/opus', async (req, res) => {
 
 app.get('/api/download/audio/mp3', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
-    if (!ytdl.validateURL(url)) return res.status(500).send('Error');
+    //if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
         const audioStream = ytdl(url, { quality: 'highestaudio' /*, agent:agent*/});
         //ffmpegでopusからmp3に変換
@@ -65,7 +65,7 @@ app.get('/api/download/audio/mp3', async (req, res) => {
 
 app.get('/api/download/video/mp4', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
-    if (!ytdl.validateURL(url)) return res.status(500).send('Error');
+    //if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
     const ytdlm = (link, agent, options = {}) => {
     const result = new stream.PassThrough({ highWaterMark: options.highWaterMark || 1024 * 512 });
@@ -115,7 +115,7 @@ app.get('/api/download/video/mp4', async (req, res) => {
 
 app.get('/api/getInfo', async (req, res) => {
     const url = req.query.url;
-    if (!ytdl.validateURL(url)) return res.status(500).send('Error');
+    //if (!ytdl.validateURL(url)) return res.status(500).send('Error');
 
     try {
         const songInfo = await ytdl.getInfo(url/*,{ agent:agent}*/);
