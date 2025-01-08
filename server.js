@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
-//const ytdl = require("@ybd-project/ytdl-core");
+const ytdl = require("@distube/ytdl-core");
 const path = require('path');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require("ffmpeg-static")
@@ -16,7 +16,7 @@ const agentOptions = {
 }
 const cookiesPath = path.join(__dirname, 'cookies.json');
 const cookiesContent = JSON.parse(fs.readFileSync(cookiesPath, 'utf8'));
-//const agent = ytdl.createAgent(cookiesContent, agentOptions);
+const agent = ytdl.createAgent(cookiesContent, agentOptions);
 
 process.on('uncaughtException', function (err) {
     console.log(err);
@@ -33,8 +33,8 @@ app.get('/api/download/audio/opus', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
     //if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-        const audioStream = await play.stream(url/*, { quality: 'highestaudio' , agent:agent}*/);
-        audioStream.stream.pipe(res);
+        const audioStream = await ytdl(url, { quality: 'highestaudio' , agent:agent});
+        audioStream.pipe(res);
     } catch (err) {
         console.error('Error:', err);
         res.status(500).send('Error');
@@ -45,9 +45,9 @@ app.get('/api/download/audio/mp3', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
     //if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-        const audioStream = await play.stream(url/*, { quality: 'highestaudio' , agent:agent}*/);
+        const audioStream = await ytdl(url, { quality: 'highestaudio' , agent:agent});
         //ffmpegでopusからmp3に変換
-        ffmpeg(audioStream.stream)
+        ffmpeg(audioStream)
             .setFfmpegPath(ffmpegPath)
             .audioBitrate(128)
             .format('mp3')
