@@ -9,6 +9,7 @@ const play = require('play-dl');
 const fs = require("fs")
 const cp = require('child_process');
 const stream = require('stream');
+const { v4: uuidv4 } = require('uuid');
 const agentOptions = {
     headers: {
         referer: "https://www.youtube.com/",
@@ -29,66 +30,101 @@ process.on('unhandledRejection', function (err) {
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public_html')));
 
+const TEMP_DIR = '/path/to/temp_dir';
+
+// 一時フォルダがない場合は作成
+if (!fs.existsSync(TEMP_DIR)) {
+  fs.mkdirSync(TEMP_DIR, { recursive: true });
+}
+
+/**
+ * パストラバーサル攻撃対策の簡易サニタイズ関数
+ * Windows等で問題となる可能性のある文字や、../ を削除する
+ */
+function sanitizeFilename(input) {
+  // Windowsを想定し、< > : " / \ | ? * と制御文字、連続した「..」を削除
+  return input
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '') // 特殊文字を削除
+    .replace(/\.\.+/g, '')               // 連続した「..」を削除
+    .trim();
+}
+
 app.get('/api/download/audio/opus', async (req, res) => {
   try {
-    const url = decodeURIComponent(req.query.url);
+    const url = decodeURIComponent(req.query.url || '');
+    if (!url) {
+      return res.status(400).send('No URL provided.');
+    }
 
-    // 事前に動画情報を取得し、"audioonly"なフォーマットを検索
+    // YouTube動画情報を取得してタイトルをサニタイズ
     const info = await ytdl.getInfo(url);
-    const audioFormats = ytdl.filterFormats(info.formats, 'audioonly');
-    // 適当な音声フォーマットを一つ選ぶ
-    const bestAudioFormat = audioFormats[0]; 
-    // contentLength が取れるかチェック
-    const totalBytesStr = bestAudioFormat.contentLength; 
-    const totalBytes = totalBytesStr ? parseInt(totalBytesStr, 10) : null;
+    let rawTitle = info.videoDetails.title || 'unknown';
+    let safeTitle = sanitizeFilename(rawTitle);
+    if (!safeTitle) {
+      safeTitle = 'unknown';
+    }
 
-    // ダウンロード用のヘッダを設定
-    res.setHeader('Content-Type', 'audio/ogg');
-    res.setHeader('Content-Disposition', 'attachment; filename="audio.opus"');
+    // 一時ファイル名を一意に生成（タイトル + UUID）
+    const tempFileName = `${safeTitle}_${uuidv4()}.opus`;
+    const tempFilePath = path.join(TEMP_DIR, tempFileName);
 
-    // ytdl のストリームを開始
-    const audioStream = ytdl(url, {
-      format: bestAudioFormat,
-      highWaterMark: 1 << 28
+    // 1. サーバー側でファイルを完全ダウンロード
+    await new Promise((resolve, reject) => {
+      const writeStream = fs.createWriteStream(tempFilePath);
+      const audioStream = ytdl(url, {
+        filter: 'audioonly',
+        highWaterMark: 1 << 28
+      });
+
+      audioStream.pipe(writeStream);
+
+      audioStream.on('error', (err) => {
+        console.error('Error in ytdl stream:', err);
+        reject(err);
+      });
+
+      writeStream.on('error', (err) => {
+        console.error('Error in writeStream:', err);
+        reject(err);
+      });
+
+      writeStream.on('finish', resolve);
     });
 
-    let downloaded = 0;
+    // 2. ダウンロード完了後、ファイルサイズを取得して Content-Length を設定
+    const stats = fs.statSync(tempFilePath);
+    const fileSize = stats.size;
 
-    // データ受信時にバイト数をカウント
-    audioStream.on('data', (chunk) => {
-      downloaded += chunk.length;
-      // console.log(`Downloaded: ${downloaded} / ${totalBytes}`);
+    // 3. レスポンスヘッダを設定してクライアントに送信
+    res.setHeader('Content-Type', 'audio/ogg'); 
+    res.setHeader('Content-Length', fileSize);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}.opus"`);
 
-      // totalBytes が有効なら、全データを取り終わった時点でストリームを強制終了
-      if (totalBytes && downloaded >= totalBytes) {
-        console.log('All data received, force ending the stream');
-        // パイプを外してレスポンスを閉じる
-        audioStream.unpipe(res);
+    // 4. ダウンロード用ストリームを作り、送信完了後に一時ファイルを削除
+    const readStream = fs.createReadStream(tempFilePath);
+
+    readStream.on('error', (err) => {
+      console.error('Error in readStream:', err);
+      if (!res.headersSent) {
+        res.status(500).send('Download stream error.');
+      } else {
         res.end();
       }
     });
 
-    // エラーがあったらレスポンスを強制終了
-    audioStream.on('error', (err) => {
-      console.error('ytdl error:', err);
-      if (!res.headersSent) {
-        res.status(500).send('Error');
-      }
-      res.end();
+    readStream.on('close', () => {
+      fs.unlink(tempFilePath, (unlinkErr) => {
+        if (unlinkErr) {
+          console.error('Failed to remove temp file:', unlinkErr);
+        }
+      });
     });
 
-    // 念のため end イベントもハンドリング
-    audioStream.on('end', () => {
-      console.log('ytdl end event fired');
-      res.end();
-    });
-
-    // ストリームをレスポンスにパイプ
-    audioStream.pipe(res);
+    readStream.pipe(res);
 
   } catch (err) {
     console.error('Error:', err);
-    res.status(500).send('Error');
+    res.status(500).send('Internal Server Error.');
   }
 });
 
