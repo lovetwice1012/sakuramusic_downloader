@@ -30,32 +30,66 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public_html')));
 
 app.get('/api/download/audio/opus', async (req, res) => {
-    try {
-        const url = decodeURIComponent(req.query.url);
+  try {
+    const url = decodeURIComponent(req.query.url);
 
-        // レスポンスヘッダをダウンロード用に設定
-        res.setHeader('Content-Type', 'audio/ogg'); 
-        res.setHeader('Content-Disposition', 'attachment; filename="audio.opus"');
+    // 事前に動画情報を取得し、"audioonly"なフォーマットを検索
+    const info = await ytdl.getInfo(url);
+    const audioFormats = ytdl.filterFormats(info.formats, 'highestaudio');
+    // 適当な音声フォーマットを一つ選ぶ
+    const bestAudioFormat = audioFormats[0]; 
+    // contentLength が取れるかチェック
+    const totalBytesStr = bestAudioFormat.contentLength; 
+    const totalBytes = totalBytesStr ? parseInt(totalBytesStr, 10) : null;
 
-        const audioStream = ytdl(url, {
-            filter: 'audioonly',
-            highWaterMark: 1 << 28,
-        });
+    // ダウンロード用のヘッダを設定
+    res.setHeader('Content-Type', 'audio/ogg');
+    res.setHeader('Content-Disposition', 'attachment; filename="audio.opus"');
 
-        // エラーハンドリング（ストリームは必須）
-        audioStream.on('error', (err) => {
-            console.error('Error:', err);
-            res.status(500).send('Stream Error');
-        });
+    // ytdl のストリームを開始
+    const audioStream = ytdl(url, {
+      format: bestAudioFormat,
+      highWaterMark: 1 << 28
+    });
 
-        // ストリームをパイプして送信
-        audioStream.pipe(res);
+    let downloaded = 0;
 
-        audioStream.on('end', () => res.end())
-    } catch (err) {
-        console.error('Error:', err);
+    // データ受信時にバイト数をカウント
+    audioStream.on('data', (chunk) => {
+      downloaded += chunk.length;
+      // console.log(`Downloaded: ${downloaded} / ${totalBytes}`);
+
+      // totalBytes が有効なら、全データを取り終わった時点でストリームを強制終了
+      if (totalBytes && downloaded >= totalBytes) {
+        console.log('All data received, force ending the stream');
+        // パイプを外してレスポンスを閉じる
+        audioStream.unpipe(res);
+        res.end();
+      }
+    });
+
+    // エラーがあったらレスポンスを強制終了
+    audioStream.on('error', (err) => {
+      console.error('ytdl error:', err);
+      if (!res.headersSent) {
         res.status(500).send('Error');
-    }
+      }
+      res.end();
+    });
+
+    // 念のため end イベントもハンドリング
+    audioStream.on('end', () => {
+      console.log('ytdl end event fired');
+      res.end();
+    });
+
+    // ストリームをレスポンスにパイプ
+    audioStream.pipe(res);
+
+  } catch (err) {
+    console.error('Error:', err);
+    res.status(500).send('Error');
+  }
 });
 
 app.get('/api/download/audio/mp3', async (req, res) => {
