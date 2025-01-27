@@ -50,6 +50,8 @@ app.get('/api/download/audio/opus', async (req, res) => {
 
         // ストリームをパイプして送信
         audioStream.pipe(res);
+
+        audioStream.on('end', () => res.end())
     } catch (err) {
         console.error('Error:', err);
         res.status(500).send('Error');
