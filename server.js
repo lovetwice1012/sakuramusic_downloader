@@ -30,10 +30,28 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public_html')));
 
 app.get('/api/download/audio/opus', async (req, res) => {
-    const url = decodeURIComponent(req.query.url);
-    //if (!ytdl.validateURL(url)) return res.status(500).send('Error');
     try {
-        const audioStream = await ytdl(url, { quality: 'highestaudio' , agent:agent, highWaterMark: 1 << 28});
+        const url = decodeURIComponent(req.query.url);
+
+        // レスポンスヘッダをダウンロード用に設定
+        res.setHeader('Content-Type', 'audio/ogg'); 
+        res.setHeader('Content-Disposition', 'attachment; filename="audio.opus"');
+
+        // dlChunkSizeを大きく（0指定）すると複数回のリクエストではなく
+        // 一度のリクエストでまとめて受け取れる可能性がある（YouTube側次第）。
+        const audioStream = ytdl(url, {
+            filter: 'audioonly',
+            highWaterMark: 1 << 28,
+            dlChunkSize: 0, // これを大きく/0指定して"一括"リクエスト試行
+        });
+
+        // エラーハンドリング（ストリームは必須）
+        audioStream.on('error', (err) => {
+            console.error('Error:', err);
+            res.status(500).send('Stream Error');
+        });
+
+        // ストリームをパイプして送信
         audioStream.pipe(res);
     } catch (err) {
         console.error('Error:', err);
