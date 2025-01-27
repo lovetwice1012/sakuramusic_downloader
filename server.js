@@ -35,7 +35,7 @@ app.get('/api/download/audio/opus', async (req, res) => {
 
     // 事前に動画情報を取得し、"audioonly"なフォーマットを検索
     const info = await ytdl.getInfo(url);
-    const audioFormats = ytdl.filterFormats(info.formats, 'highestaudio');
+    const audioFormats = ytdl.filterFormats(info.formats, 'audioonly');
     // 適当な音声フォーマットを一つ選ぶ
     const bestAudioFormat = audioFormats[0]; 
     // contentLength が取れるかチェック
