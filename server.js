@@ -37,12 +37,9 @@ app.get('/api/download/audio/opus', async (req, res) => {
         res.setHeader('Content-Type', 'audio/ogg'); 
         res.setHeader('Content-Disposition', 'attachment; filename="audio.opus"');
 
-        // dlChunkSizeを大きく（0指定）すると複数回のリクエストではなく
-        // 一度のリクエストでまとめて受け取れる可能性がある（YouTube側次第）。
         const audioStream = ytdl(url, {
             filter: 'audioonly',
             highWaterMark: 1 << 28,
-            dlChunkSize: 16, // これを大きく/0指定して"一括"リクエスト試行
         });
 
         // エラーハンドリング（ストリームは必須）
