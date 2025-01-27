@@ -30,24 +30,7 @@ process.on('unhandledRejection', function (err) {
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public_html')));
 
-const TEMP_DIR = '/path/to/temp_dir';
-
-// 一時フォルダがない場合は作成
-if (!fs.existsSync(TEMP_DIR)) {
-  fs.mkdirSync(TEMP_DIR, { recursive: true });
-}
-
-/**
- * パストラバーサル攻撃対策の簡易サニタイズ関数
- * Windows等で問題となる可能性のある文字や、../ を削除する
- */
-function sanitizeFilename(input) {
-  // Windowsを想定し、< > : " / \ | ? * と制御文字、連続した「..」を削除
-  return input
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '') // 特殊文字を削除
-    .replace(/\.\.+/g, '')               // 連続した「..」を削除
-    .trim();
-}
+const IDLE_TIMEOUT_MS = 2000; // 例: 2秒間ダウンロードが停滞したら切断
 
 app.get('/api/download/audio/opus', async (req, res) => {
   try {
@@ -56,77 +39,76 @@ app.get('/api/download/audio/opus', async (req, res) => {
       return res.status(400).send('No URL provided.');
     }
 
-    // YouTube動画情報を取得してタイトルをサニタイズ
-    const info = await ytdl.getInfo(url);
-    let rawTitle = info.videoDetails.title || 'unknown';
-    let safeTitle = sanitizeFilename(rawTitle);
-    if (!safeTitle) {
-      safeTitle = 'unknown';
-    }
+    // ytdlオプション（必要に応じて調整）
+    const ytdlOptions = {
+      filter: 'audioonly',
+      highWaterMark: 1 << 28
+    };
 
-    // 一時ファイル名を一意に生成（タイトル + UUID）
-    const tempFileName = `${safeTitle}_${uuidv4()}.opus`;
-    const tempFilePath = path.join(TEMP_DIR, tempFileName);
+    // レスポンスヘッダ（ダミーのファイル名を設定）
+    res.setHeader('Content-Type', 'audio/ogg');
+    res.setHeader('Content-Disposition', 'attachment; filename="audio.opus"');
 
-    // 1. サーバー側でファイルを完全ダウンロード
-    await new Promise((resolve, reject) => {
-      const writeStream = fs.createWriteStream(tempFilePath);
-      const audioStream = ytdl(url, {
-        filter: 'audioonly',
-        highWaterMark: 1 << 28
-      });
+    const audioStream = ytdl(url, ytdlOptions);
 
-      audioStream.pipe(writeStream);
+    // ダウンロードしたバイト数と最後に受信があった時刻をトラッキング
+    let downloadedBytes = 0;
+    let lastReceivedAt = Date.now();
 
-      audioStream.on('error', (err) => {
-        console.error('Error in ytdl stream:', err);
-        reject(err);
-      });
+    // dataイベントで更新
+    const onData = (chunk) => {
+      downloadedBytes += chunk.length;
+      lastReceivedAt = Date.now();
+    };
+    audioStream.on('data', onData);
 
-      writeStream.on('error', (err) => {
-        console.error('Error in writeStream:', err);
-        reject(err);
-      });
-
-      writeStream.on('finish', resolve);
-    });
-
-    // 2. ダウンロード完了後、ファイルサイズを取得して Content-Length を設定
-    const stats = fs.statSync(tempFilePath);
-    const fileSize = stats.size;
-
-    // 3. レスポンスヘッダを設定してクライアントに送信
-    res.setHeader('Content-Type', 'audio/ogg'); 
-    res.setHeader('Content-Length', fileSize);
-    res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}.opus"`);
-
-    // 4. ダウンロード用ストリームを作り、送信完了後に一時ファイルを削除
-    const readStream = fs.createReadStream(tempFilePath);
-
-    readStream.on('error', (err) => {
-      console.error('Error in readStream:', err);
+    // エラー処理
+    audioStream.on('error', (err) => {
+      console.error('ytdl error:', err);
       if (!res.headersSent) {
-        res.status(500).send('Download stream error.');
+        res.status(500).send('Error while downloading audio.');
       } else {
         res.end();
       }
     });
 
-    readStream.on('close', () => {
-      fs.unlink(tempFilePath, (unlinkErr) => {
-        if (unlinkErr) {
-          console.error('Failed to remove temp file:', unlinkErr);
-        }
-      });
+    // endイベント
+    audioStream.on('end', () => {
+      console.log(`Download ended normally. Total bytes: ${downloadedBytes}`);
+      res.end();
     });
 
-    readStream.pipe(res);
+    // ダウンロード停滞監視用のタイマー
+    const intervalId = setInterval(() => {
+      const now = Date.now();
+      const diff = now - lastReceivedAt;
+      if (diff > IDLE_TIMEOUT_MS) {
+        // 一定時間バイト数が増えなかったので強制終了
+        console.warn(`No data received for ${(diff / 1000).toFixed(1)}s. Forcing end of stream.`);
+        audioStream.removeListener('data', onData);
+        audioStream.unpipe(res);
+        res.end();
+        clearInterval(intervalId);
+      }
+    }, 1000); // 1秒ごとにチェック
 
-  } catch (err) {
-    console.error('Error:', err);
+    // レスポンスが終了したら監視を停止
+    res.on('finish', () => {
+      clearInterval(intervalId);
+    });
+    res.on('close', () => {
+      clearInterval(intervalId);
+    });
+
+    // パイプ
+    audioStream.pipe(res);
+
+  } catch (error) {
+    console.error('Error:', error);
     res.status(500).send('Internal Server Error.');
   }
 });
+
 
 app.get('/api/download/audio/mp3', async (req, res) => {
     const url = decodeURIComponent(req.query.url);
