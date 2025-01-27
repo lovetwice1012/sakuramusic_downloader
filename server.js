@@ -42,7 +42,7 @@ app.get('/api/download/audio/opus', async (req, res) => {
         const audioStream = ytdl(url, {
             filter: 'audioonly',
             highWaterMark: 1 << 28,
-            dlChunkSize: 0, // これを大きく/0指定して"一括"リクエスト試行
+            dlChunkSize: 16, // これを大きく/0指定して"一括"リクエスト試行
         });
 
         // エラーハンドリング（ストリームは必須）
